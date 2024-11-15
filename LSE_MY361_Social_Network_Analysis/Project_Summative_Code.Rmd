@@ -1,0 +1,782 @@
+---
+title: "Final Project"
+output:
+  html_document:
+    df_print: paged
+---
+
+# MY361 Group Project
+
+Daniella Smith: Investigating Centrality Distributions Between Academic Fields
+
+Brooke Feinberg: Exploring Connectivity Dynamics in Feminised Academic Fields
+
+Saachi Sabnis: Understanding Structural Differences Among Academic Networks
+
+## Loading Packages
+
+```{r}
+install.packages("igraph")
+```
+
+## Loading Data
+
+```{r}
+co_auth <-  read.delim("~/Desktop/authorship/edges.txt",sep = ",",header = FALSE, as.is = TRUE)
+auth_att <- read.delim("~/Desktop/authorship/gs_info.txt",sep = " ",header= FALSE,as.is = TRUE,nrows = 402390)
+colnames(auth_att) <- c("id", "citations","h_index","g_index","title","comp_sci","bio","socio")
+```
+
+```{r}
+head(co_auth)
+```
+
+## Create the Network
+
+```{r}
+co_net <- graph_from_edgelist(as.matrix(co_auth), directed = FALSE)
+
+attify <- function(n_net){
+  V(n_net)$id <- V(n_net)
+  V(n_net)$citations <- auth_att$citations
+  V(n_net)$title <- auth_att$title
+  V(n_net)$h_index <- auth_att$h_index
+  V(n_net)$g_index <- auth_att$g_index
+  V(n_net)$comp_sci <- auth_att$comp_sci
+  V(n_net)$bio <- auth_att$bio
+  V(n_net)$socio <- auth_att$socio
+  return(n_net)
+}
+
+co_net <- attify(co_net)
+```
+
+## Exploring the Network
+
+```{r}
+summary(co_net)
+```
+
+-   Uni-directed graph
+
+-   402,390 nodes
+
+-   1234019 links
+
+Attributes : citations, title, h-index, g-index, compsci, bio, socio
+
+## **22417: Investigating Centrality Distributions Between Academic Fields**
+
+### **Degree centrality : Refers to the number of connections a node has, and it can be further broken down into in-degree and out-degree for directed networks:**
+
+```{r}
+deg <- degree(co_net)
+summary(deg)
+```
+
+```{r}
+hist(deg,breaks = 300)
+```
+
+Summary:
+
+The median degree (number of co-authored papers) is 2, whereas the mean degree is 6.133, indicating there is a skew in the degree distribution, with most individuals having low values, but a small number of individuals having a very high degree. There are a very small number of individuals with a degree greater than 6.
+
+## Degree Distribution
+
+Eigenvector Centrality
+
+```{r}
+eig <- evcent(co_net)$vector
+summary(eig)
+```
+
+PageRank Centrality
+
+```{r}
+pr <- page_rank(co_net)$vector
+summary(pr)
+```
+
+The eigenvector centrality ranges from 0 to 1; PageRank has much smaller values. The distribution of values is skewed, with only a few students having higher values.
+
+Betweenness
+
+### **CCDF of Overall Network**
+
+```{r}
+## in degree
+deg <- degree(co_net)
+
+# probability of degree
+prob_deg <- degree_distribution(co_net)
+
+# Remove indegree=0
+prob_deg <- prob_deg[-1]
+
+# Remove degree with proprtion = 0
+nonzero_pos <- which(prob_deg!=0)
+prob_deg <- prob_deg[nonzero_pos]
+
+# Create a vector including all nonzero probability degrees
+
+degree_vec <- 1:max(deg)
+degree_vec<- degree_vec[nonzero_pos]
+
+# Loop over the probability vector and sum all values from the current position until the end 
+
+ccdf_deg <- NULL
+for ( i in 1:length(prob_deg)) {
+  ccdf_deg[i] = sum( prob_deg[ seq( i, length(prob_deg)) ] )
+}
+
+plot(ccdf_deg ~ degree_vec, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     log = 'xy',
+     col = 'blue')
+```
+
+\
+
+## Three Different Fields
+
+```{r}
+comp_net <- induced.subgraph(co_net, 
+  V(co_net)[comp_sci == 1 ])
+summary(comp_net)
+```
+
+```{r}
+plot(comp_net)
+```
+
+```{r}
+bio_net <- induced.subgraph(co_net, 
+  V(co_net)[bio == 1])
+summary(bio_net)
+```
+
+```{r}
+plot(bio_net)
+```
+
+```{r}
+socio_net <- induced.subgraph(co_net, 
+  V(co_net)[socio == 1])
+summary(socio_net)
+```
+
+```{r}
+plot(socio_net)
+```
+
+Immediately we can see that there is a difference between the three author types in terms of their networks. While the computer science authors and biology authors have networks of similar sizes (82966 nodes and 52641 edges; 82361 nodes and 51240 edges), the sociology authors are much less numerous, and have very few links (1602;17).
+
+```{r}
+comp_deg <- degree(comp_net)
+comp_eig <- evcent(comp_net)$vector
+summary(comp_deg)
+summary(comp_eig)
+```
+
+```{r}
+bio_deg <- degree(bio_net)
+bio_eig <- evcent(bio_net)$vector
+
+summary(bio_deg)
+summary(bio_eig)
+```
+
+```{r}
+socio_deg <- degree(socio_net)
+socio_eig <- evcent(socio_net)$vector
+
+summary(socio_deg)
+summary(socio_eig)
+
+```
+
+**Degree**
+
+The Computer Science network has the highest mean degree of 1.27, and the highest maximum degree of 89; similarly, the Biology network has a mean degree of 1.24 and a maximum degree of 85. In sharp contrast, the sociology network has a mean degree of 0.02, and a maximum degree of 2. It appears that coauthorship practices are much more similar among computer science and biology authors compared to sociology authors, with a higher amount of collaboration and knowledge sharing in those fields.
+
+**Eigenvector Centrality**
+
+Computer Science authors have a mean eigenvector centrality of 0.000508, which is in greater than the mean eigenvector centrality for biology authors (0.000398). In contrast to degree, socology authors have a higher mean eigenvector centrality than both other fields, with a mean eigenvector centrality of 0.00151. It appears that nodes in the sociology network have a lot more influence on the mechanisms of the network, compared to nodes in the other two fields.
+
+**PageRank Centrality**
+
+Again, the sociology network has a much higher pagerank centrality (0.00624) compared to either of the other networks. However, biology has a higher mean pagerank ( 1.214e - 05) compared to computer science (1.205 e-05)
+
+## **CCDF of Three Different Fields**
+
+### **Degree Distributions**
+
+```{r}
+hist(degree_distribution(comp_net), breaks = 20)
+```
+
+```{r}
+hist(degree_distribution(bio_net), breaks = 20)
+```
+
+```{r}
+hist(degree_distribution(socio_net), breaks = 20)
+```
+
+```{r}
+# Computer Science
+## in degree
+comp_deg <- degree(comp_net)
+## probability of degree
+prob_deg_c <- degree_distribution(comp_net)
+## Remove indegree=0
+prob_deg_c <- prob_deg_c[-1]
+## Remove degree with proprtion = 0
+nonzero_pos_c <- which(prob_deg_c!=0)
+prob_deg_c <- prob_deg_c[nonzero_pos_c]
+## Create a vector including all nonzero probability degrees
+degree_vec_c <- 1:max(comp_deg)
+degree_vec_c<- degree_vec_c[nonzero_pos_c]
+# Loop over the probability vector and sum all values from the current position until the end 
+
+ccdf_comp_deg <- NULL
+for ( i in 1:length(prob_deg_c)) {
+  ccdf_comp_deg[i] = sum(prob_deg_c[ seq( i, length(prob_deg_c)) ] )
+}
+
+plot(ccdf_comp_deg ~ degree_vec_c, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     main = "Computer Science Network CCDF",
+     log = 'xy',
+     col = 'blue')
+```
+
+```{r}
+# Biology
+## in degree
+bio_deg <- degree(bio_net)
+## probability of degree
+prob_deg_b <- degree_distribution(bio_net)
+## Remove indegree=0
+prob_deg_b <- prob_deg_b[-1]
+## Remove degree with proprtion = 0
+nonzero_pos_b <- which(prob_deg_b!=0)
+prob_deg_b <- prob_deg_b[nonzero_pos_b]
+## Create a vector including all nonzero probability degrees
+degree_vec_b <- 1:max(bio_deg)
+degree_vec_b<- degree_vec_b[nonzero_pos_b]
+# Loop over the probability vector and sum all values from the current position until the end 
+
+ccdf_bio_deg <- NULL
+for ( i in 1:length(prob_deg_b)) {
+  ccdf_bio_deg[i] = sum(prob_deg_b[ seq( i, length(prob_deg_b)) ] )
+}
+
+plot(ccdf_bio_deg ~ degree_vec_b, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     main = "Biology Network CCDF",
+     log = 'xy',
+     col = 'blue')
+```
+
+```{r}
+# Sociology
+## in degree
+socio_deg <- degree(socio_net)
+## probability of degree
+prob_deg_s <- degree_distribution(socio_net)
+## Remove indegree=0
+prob_deg_s <- prob_deg_s[-1]
+## Remove degree with proprtion = 0
+nonzero_pos_s <- which(prob_deg_s!=0)
+prob_deg_s <- prob_deg_s[nonzero_pos_s]
+## Create a vector including all nonzero probability degrees
+degree_vec_s <- 1:max(socio_deg)
+degree_vec_s<- degree_vec_s[nonzero_pos_s]
+# Loop over the probability vector and sum all values from the current position until the end 
+ccdf_socio_deg <- NULL
+for ( i in 1:length(prob_deg_s)) {
+  ccdf_socio_deg[i] = sum(prob_deg_s[ seq( i, length(prob_deg_s)) ] )
+}
+plot(ccdf_socio_deg ~ degree_vec_s, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     main = "Sociology Network CCDF",
+     log = 'xy',
+     col = 'blue')
+```
+
+```{r}
+par(mfrow = c(1,2))
+
+plot(ccdf_comp_deg ~ degree_vec_c, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     main = "Computer Science Network CCDF",
+     log = 'xy',
+     col = 'blue')
+
+plot(ccdf_bio_deg ~ degree_vec_b, 
+     xlab = 'degree d',
+     ylab = 'Complementary CDF P (X > = d)',
+     main = "Biology Network CCDF",
+     log = 'xy',
+     col = 'blue')
+```
+
+```{r}
+print(fit_power_law(comp_deg))
+```
+
+```{r}
+print(fit_power_law(bio_deg))
+```
+
+The Computer Science and Sociology degree distributions fit a power law, however the Biology degree distribution does not.
+
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\--
+
+## 34809: Exploring Connectivity Dynamics in Feminised Academic Fields
+
+#Density
+
+```{r}
+edge_density(socio_net)
+edge_density(comp_net)
+edge_density(bio_net)
+```
+
+-   A comparative analysis among the three networks is impractical due to drastically different network sizes. However, considering computer science and biology both have 80,000+ nodes, we can note that the slightly higher density in computer science indicates that the network has a stronger propensity for edge formations to arise.
+
+### Network Visualization
+
+```{r}
+set.seed(10)
+title_colors <- c(
+  "3" = "#7DF9FF",
+  "2" = "yellow",
+  "1" = "red",
+  "0" = "purple")
+labels<- c("3" = "Professors", "2"= "Postdocs", "1"= "Students", "0"="Unknown")
+legend_labels= labels[names(title_colors)]
+
+plot(socio_net, 
+     vertex.color= title_colors[as.character(V(socio_net)$title)],
+     vertex.size= 5,
+     vertex.label= NA, 
+     rescale = TRUE, 
+     margin = c(0.0001, 0.0001, 0.0001, 0.0001), 
+     main= "Sociology Network")
+legend("topright",
+       legend = legend_labels,
+       fill = title_colors)
+```
+
+```{r}
+title_counts <- table(V(socio_net)$title)
+print(title_counts)
+```
+
+-   This network is dominated by professors, totaling 1069, while postdocs represent the lowest count at 18. This suggests more accomplished and notable sociologists are sought after for co-authorship, underscoring the difficulty of engaging in collaborative endeavors as a young academic in the sociology field.
+
+### Network Connections Visualization 
+
+```{r}
+vertex_degrees <- sapply(V(socio_net), function(v) {
+    length(neighbors(socio_net, v, mode = "all"))})  #sapply function taken from ChatGPT
+
+nodes_with_edges <- V(socio_net)[vertex_degrees > 0]
+subgraph_with_edges <- induced_subgraph(socio_net, nodes_with_edges)
+directed_subgraph <- as.directed(subgraph_with_edges, mode = "mutual")
+
+title_colors <- c(
+  "3" = "#7DF9FF",
+  "2" = "yellow",
+  "1" = "red",
+  "0" = "purple")
+labels<- c("3" = "Professors", "2"= "Postdocs", "1"= "Students", "0"="Unknown")
+legend_labels= labels[names(title_colors)]
+
+plot(directed_subgraph,
+  vertex.color= title_colors[as.character(V(socio_net)$title)],
+  vertex.size = 5,
+  vertex.label = NA,
+  edge.arrow.size = 0.3, 
+  main= "Sociology Network Collaborations")
+legend("topright",
+       legend = legend_labels,
+       fill = title_colors)
+```
+
+### Network Connectivity Statistics
+
+```{r}
+edge_title_counts <- table(nodes_with_edges$title)
+print(edge_title_counts)
+```
+
+-   The connections present in this network indicate an extremely constrained spread and flow of information, largely stemming from the restrictive nature of dyadic relationships. Furthermore, most connections involve at least one professor, with only three postdocs and students combined across the entire network. This underscores the fields inclination toward collaboration with distinguished scholars in sociology, presenting a significant barrier for young academics seeking to establish themselves within the academic sphere given limited access to co-authorship opportunities.
+
+### ERGM
+
+```{r}
+library(intergraph)
+library(ergm)
+library(sna)
+```
+
+#### Sociology Network as Network Object
+
+```{r}
+socio_network<- asNetwork(socio_net)
+socio_network
+```
+
+```{r}
+m1<- ergm(socio_network ~ edges)
+summary(m1)
+```
+
+```{r}
+exp(coef(m1))/(1+exp(coef(m1)))
+```
+
+```{r}
+(gden(socio_network))
+```
+
+-   Baseline Prediction: Predicting the probability of a tie in this network. Baseline is equal to the density of the original network
+
+#### Fitting Different Models
+
+```{r}
+m2<- ergm(socio_network ~ edges
+          + nodefactor("title"))
+summary(m2)
+```
+
+```{r}
+m3<- ergm(socio_network ~ edges
+          + nodemix("title"))
+summary(m3)
+```
+
+```{r}
+m4<- ergm(socio_network ~ edges
+          + nodefactor("title")
+          + mutual)
+summary(m4)
+```
+
+```{r}
+m5<- ergm(socio_network ~ edges
+          + nodefactor("title")
+          + triangle)
+summary(m5)
+```
+
+```{r}
+m6<- ergm(socio_network ~ edges
+          + nodefactor("title")
+          + gwesp(0.1, fixed = TRUE))
+summary(m6)
+```
+
+```{r}
+m7<- ergm(socio_network ~ edges
+          + nodefactor("title")
+          + nodefactor("g_index"))
+summary(m7)
+```
+
+```{r}
+AIC(m1, m2, m3, m4, m5, m6, m7)
+```
+
+```{r}
+BIC(m1, m2, m3, m4, m5, m6, m7)
+```
+
+-   Improved AIC value on model seven but significantly worse BIC score. Given the scarcity of data available, we conclude none of the proposed models improved the baseline ERGM. This sheds light on the network\'s sparse connectivity, as the limited amount of existing connections inhibits our ability to identify key attributes that impact edge formation.
+
+#### Simulated Network Graph
+
+```{r}
+sim7<- simulate(m7)
+
+gplot(sim7, 
+      vertex.cex = 0.2,
+      vertex.col = sim7 %v% "title", 
+      edge.col = "red", 
+      mode= "fruchtermanreingold")
+title("Simulated Network Graph")
+```
+
+based on model seven (with the improved AIC) to compare density measures.
+
+```{r}
+network.density(sim7)
+```
+
+-   However, the sim 7 network density is the same as the baseline, indicating conditioning on `g_index` and `title` failed to facilitate the formation of connections.
+
+```{r}
+goftest <- gof(m7)
+plot(goftest)
+```
+
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\--
+
+## 25864: Understanding Structural Differences Among Academic Networks
+
+## Transitivity
+
+```{r}
+transitivity(comp_net)
+transitivity(bio_net)
+transitivity(socio_net)
+```
+
+-   This means that when two academics in the computer science network have a common co-author, there is a 22% chance that they are also co-authors. Similarly, for the biology network, this is 20%. However, for the sociology network, this is 0% meaning that the few co-authorships (17) could be in a more sparse or linear structure without the existence of tightly knit groups.
+
+-   **Computer Science** and **Biology** networks exhibit some degree of clustering, indicating that nodes (authors) in these fields tend to create groups or triangles where everyone has worked with everyone else within the group. The higher value in Computer Science suggests slightly more common collaborative clusters than in Biology.
+
+-   The **Sociology Network** shows a transitivity of 0, meaning there are no closed triangles at all.This suggests a more linear or hierarchical collaboration pattern with no mutual co-authorships forming among trio groups of authors.
+
+```{r}
+local_trans1 <- transitivity(comp_net, type = "local")
+summary(local_trans1)
+local_trans2 <- transitivity(bio_net, type = "local")
+summary(local_trans2)
+local_trans3 <- transitivity(socio_net, type = "local")
+summary(local_trans3)
+```
+
+-   For **Computer Science** and **Biology**, the average local transitivity is close, indicating that, on average, around 27-28% of a node's neighbors are connected to each other. The summary statistics further reveal that at least 25% of nodes in these fields have a clustering coefficient higher than 0.33, which is relatively significant.
+
+-   In **Sociology**, the consistent zeroes across all local transitivity measures confirm the absence of clustering at the individual level, which supports the global transitivity finding.
+
+```{r}
+aggregate(x = local_trans1, by = list(V(comp_net)$title), FUN = mean, na.rm = TRUE)
+aggregate(x = local_trans2, by = list(V(bio_net)$title), FUN = mean, na.rm = TRUE)
+```
+
+-   Both fields show that professors, postdocs, and students have similar levels of clustering, indicating a relatively uniform collaborative pattern across different academic statuses. The slight variations suggest minor differences in how densely connected these groups are, but generally, all titles participate in collaborative clusters.
+
+-   The mean transitivity does not significantly vary by academic status, suggesting that the propensity to form collaborative clusters is fairly consistent across career stages in these fields.
+
+## Assortativity
+
+### For compsci network by title
+
+```{r}
+V(comp_net)$title <- as.factor(V(comp_net)$title)
+
+# Check the levels of 'title' to ensure they are correct
+print(levels(V(comp_net)$title))
+
+# Calculate assortativity by academic title
+title_assortativity <- assortativity_nominal(comp_net, V(comp_net)$title, directed = FALSE)
+print(paste("Assortativity by academic title:", title_assortativity))
+
+```
+
+This value is very close to zero, which indicates that there is almost no tendency for authors to collaborate more frequently with others of the same academic title than with authors of different titles. In other words, the network does not show significant homophily based on academic titles.
+
+### For bio network by title
+
+```{r}
+V(bio_net)$title <- as.factor(V(bio_net)$title)
+
+# Check the levels of 'title' to ensure they are correct
+print(levels(V(bio_net)$title))
+
+# Calculate assortativity by academic title
+title_assortativity1 <- assortativity_nominal(bio_net, V(bio_net)$title, directed = FALSE)
+print(paste("Assortativity by academic title:", title_assortativity1))
+```
+
+-   **Slightly Negative Assortativity Coefficient**: This value, being close to zero but negative, indicates that there is a very slight tendency for nodes (authors) to connect with others who have different academic titles. However, the value is so close to zero that this tendency is very weak.
+
+-   Like the computer science network, the biology network does not exhibit significant segregation or clustering based on academic titles. The very slight negative value suggests even less of a pattern where authors collaborate within their own academic rank.
+
+### For socio network by title
+
+```{r}
+V(socio_net)$title <- as.factor(V(socio_net)$title)
+
+# Check the levels of 'title' to ensure they are correct
+print(levels(V(socio_net)$title))
+
+# Calculate assortativity by academic title
+title_assortativity2 <- assortativity_nominal(socio_net, V(socio_net)$title, directed = FALSE)
+print(paste("Assortativity by academic title:", title_assortativity2))
+```
+
+-   **Moderately Negative Assortativity**: A coefficient of -0.1873 is significantly more negative than what was seen in the computer science and biology networks. This suggests a clear pattern where authors in the sociology network tend to collaborate across different academic ranks rather than within the same rank.
+
+-   **Cross-Hierarchical Collaboration**: The negative value highlights a characteristic of the sociology network where there is perhaps a norm or a requirement that drives collaborations between junior and senior academics more frequently than among peers of the same academic status.
+
+### Graph for sociology
+
+```{r}
+# Load the igraph library
+library(igraph)
+
+# Ensure 'title' is a factor and set custom labels
+V(socio_net)$title <- factor(V(socio_net)$title, levels = c("0", "1", "2", "3"),
+                             labels = c("0-unknown", "1-students", "2-postdocs", "3-professors"))
+
+# Assign colors to each title level with descriptive names
+title_colors <- c("0-unknown" = "gray", "1-students" = "blue", "2-postdocs" = "green", "3-professors" = "red")
+
+# Apply colors to nodes based on 'title'
+node_colors <- title_colors[V(socio_net)$title]
+
+# Calculate a layout that might help to spread the nodes more effectively
+layout <- layout_with_fr(socio_net)
+
+# Plot the network with nodes colored by academic title
+plot(socio_net, layout = layout, vertex.color = node_colors, 
+     vertex.size = 5, vertex.label = NA, edge.color = "gray50",
+     main = "Sociology Network - Nodes Colored by Academic Title")
+
+# Add a legend to the plot with descriptive labels
+legend("topright", legend = names(title_colors), col = title_colors, pch = 21, pt.bg = title_colors, title = "Academic Title")
+```
+
+```{r}
+# Load the igraph library
+library(igraph)
+
+# Assuming 'socio_net' is your sociology network graph
+
+# Calculate the degree of each vertex in the graph
+node_degrees <- igraph::degree(socio_net)
+
+# Find the indices of nodes that are isolates (degree is 0)
+isolates <- which(node_degrees == 0)
+
+# Remove isolates from the network
+socio_net_no_isolates <- delete_vertices(socio_net, isolates)
+
+# Check the changes
+cat("Original network had", vcount(socio_net), "nodes and", ecount(socio_net), "edges.\n")
+cat("New network has", vcount(socio_net_no_isolates), "nodes and", ecount(socio_net_no_isolates), "edges.\n")
+
+# Now you can proceed with plotting or analyzing the reduced network
+# Recalculate the layout and plot:
+layout <- layout_with_fr(socio_net_no_isolates)
+plot(socio_net_no_isolates, layout = layout, main = "Network without Isolates")
+
+```
+
+### Graph for biology
+
+```{r}
+# Load the igraph library
+library(igraph)
+
+# Ensure 'title' is a factor and set custom labels
+V(bio_net)$title <- factor(V(bio_net)$title, levels = c("0", "1", "2", "3"),
+                             labels = c("0-unknown", "1-students", "2-postdocs", "3-professors"))
+
+# Assign colors to each title level with descriptive names
+title_colors <- c("0-unknown" = "gray", "1-students" = "blue", "2-postdocs" = "green", "3-professors" = "red")
+
+# Apply colors to nodes based on 'title'
+node_colors <- title_colors[V(bio_net)$title]
+
+# Calculate a layout that might help to spread the nodes more effectively
+layout <- layout_with_fr(bio_net)
+
+# Plot the network with nodes colored by academic title
+plot(bio_net, layout = layout, vertex.color = node_colors, 
+     vertex.size = 5, vertex.label = NA, edge.color = "gray50",
+     main = "Biology Network - Nodes Colored by Academic Title")
+
+# Add a legend to the plot with descriptive labels
+legend("topright", legend = names(title_colors), col = title_colors, pch = 21, pt.bg = title_colors, title = "Academic Title")
+```
+
+### Graph for computer science
+
+```{r}
+# Load the igraph library
+library(igraph)
+
+# Ensure 'title' is a factor and set custom labels
+V(comp_net)$title <- factor(V(comp_net)$title, levels = c("0", "1", "2", "3"),
+                             labels = c("0-unknown", "1-students", "2-postdocs", "3-professors"))
+
+# Assign colors to each title level with descriptive names
+title_colors <- c("0-unknown" = "gray", "1-students" = "blue", "2-postdocs" = "green", "3-professors" = "red")
+
+# Apply colors to nodes based on 'title'
+node_colors <- title_colors[V(comp_net)$title]
+
+# Calculate a layout that might help to spread the nodes more effectively
+layout <- layout_with_fr(comp_net)
+
+# Plot the network with nodes colored by academic title
+plot(comp_net, layout = layout, vertex.color = node_colors, 
+     vertex.size = 5, vertex.label = NA, edge.color = "gray50",
+     main = "CompSci Network - Nodes Colored by Academic Title")
+
+# Add a legend to the plot with descriptive labels
+legend("topright", legend = names(title_colors), col = title_colors, pch = 21, pt.bg = title_colors, title = "Academic Title")
+```
+
+## Edge Betweenness Community Detection
+
+```{r}
+# Invert edge weights for edge betweenness calculation
+if ("weight" %in% names(E(socio_net))) {
+    inverted_weights <- 1 / E(socio_net)$weight
+} else {
+    # If no weights are available, you might use a uniform weight or consider all edges equally
+    inverted_weights <- rep(1, ecount(socio_net))
+}
+
+# Calculate communities based on edge betweenness
+eb <- cluster_edge_betweenness(socio_net, weights = inverted_weights)
+print(membership(eb))
+print(sizes(eb))
+
+
+# Assuming you have a layout
+layout <- layout_with_fr(socio_net)
+
+# Plot the network with community structure
+plot(eb, socio_net, edge.width = E(socio_net)$weight, layout = layout)
+```
+
+```{r}
+# Invert edge weights for edge betweenness calculation
+if ("weight" %in% names(E(socio_net_no_isolates))) {
+    inverted_weights <- 1 / E(socio_net_no_isolates)$weight
+} else {
+    # If no weights are available, you might use a uniform weight or consider all edges equally
+    inverted_weights <- rep(1, ecount(socio_net_no_isolates))
+}
+
+# Calculate communities based on edge betweenness
+eb <- cluster_edge_betweenness(socio_net_no_isolates, weights = inverted_weights)
+print(membership(eb))
+print(sizes(eb))
+
+
+# Assuming you have a layout
+layout <- layout_with_fr(socio_net_no_isolates)
+
+# Plot the network with community structure
+plot(eb, socio_net_no_isolates, edge.width = E(socio_net_no_isolates)$weight, layout = layout,
+      main = "Sociology Network - Edge Betweenness Community Detection")
+```
+
+\
+Most communities in the network are visually distinct and isolated with no visible links connecting them, which may imply a low level of inter-community collaboration.
