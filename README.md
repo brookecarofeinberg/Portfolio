@@ -1,1 +1,1 @@
-This repository contians work by Brooke Feinberg, Aiwen Li, Luke Bielawski, and Richard Varela on behalf of an National Science Foundation-funded Undergraduate Research Expereince at Illinois Tech. 
+This repository showcases a collection of work completed by Brooke Feinberg during her undergraduate studies in mathematics and data science. It includes research papers, Python and R notebooks, and summative reports from her academic and research experiences, including those at the London School of Economics.  
